@@ -13,16 +13,14 @@
 # You should have received a copy of the GNU General Public License
 # along with Portfel. If not, see <http://www.gnu.org/licenses/>.
 
-"""Time series."""
+"""Filesystem-based data repository."""
 
 
-class Series(list):
-    """Time series data."""
+class Repository:
+    """Data repository."""
 
-    def __init__(self, ticker, resolution, currency, source, rows):
-        list.__init__(self, rows)
-        self.ticker = ticker
-        self.resolution = resolution
-        self.currency = currency
-        self.source = source
-        self.fields = set(rows[0].keys())
+    def __init__(self, path):
+        self.path = path
+
+    def add_series(self, series):
+        pass

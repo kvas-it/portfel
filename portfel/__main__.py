@@ -87,14 +87,16 @@ def verbose_arg():
 def repository_arg():
     """Return a decorator for --repository option."""
     default = os.getenv('PORTFEL_REPOSITORY', os.path.expanduser('~/.portfel'))
-    return arg('--repository', '-y', default=default, type=repo.open,
+    return arg('--repository', '-y', default=default, type=repo.Repository,
                help='Data repository (default: {})'.format(default))
 
 
 @command(aliases=['imps'])
 @arg('source', help='Source data file')
-@arg('--format', '-f', default='tv', type=str,
-     help='File format (default: tv)')
+@arg('--format', '-f', default='tradingview', type=str,
+     help='File format (default: tradingview)')
+@arg('--currency', '-c', default='auto', type=str,
+     help='Quote currency (default: autodetect)')
 @arg('--resolution', '-r', default='auto', type=str,
      help='Time series resolution (default: autodetect)')
 @arg('--ticker', '-t', default='auto', type=str,
@@ -106,7 +108,7 @@ def import_series(args):
     kw = {
         'resolution': args.resolution,
         'format': args.format,
-
+        'currency': args.currency,
     }
     if args.ticker != 'auto':
         kw['ticker'] = args.ticker
@@ -117,7 +119,7 @@ def import_series(args):
         resolution=args.resolution,
         ticker=args.ticker,
     )
-    args.repository.add(series)
+    args.repository.add_series(series)
 
 
 def _configure_logging(args):
