@@ -30,7 +30,9 @@ def load_series(path, format='tradingview', resolution='auto', ticker='auto',
     loader = LOADERS[format]
     series = loader.load(path, resolution=resolution, ticker=ticker,
                          currency=currency)
-    logging.info('Load series from %s (%d records, from %s to %s, fields: %s)',
-                 path, len(series), series[0]['time'], series[-1]['time'],
-                 series.fields)
+    logging.info(
+        'Loaded series from %s (%d records, from %s to %s, fields: %s)',
+        path, len(series), series[0]['time'], series[-1]['time'],
+        ', '.join(sorted(series.fields)),
+    )
     return series

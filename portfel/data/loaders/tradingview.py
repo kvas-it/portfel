@@ -17,7 +17,6 @@
 
 import csv
 import datetime
-import math
 import os
 
 import portfel.data.series as series
@@ -87,8 +86,8 @@ def extract_earnings(csv_row):
 
     for k in ['Earnings reported', 'Earnings confirmed', 'Earnings estimated']:
         if k in csv_row:
-            e = float(csv_row[k])
-            if not math.isnan(e):
+            e = series.load_float(csv_row[k])
+            if e is not None:
                 row[FIELD_MAP[k]] = e
 
     return row
@@ -105,16 +104,13 @@ def convert_row(csv_row):
 
     for k in ['open', 'close', 'high', 'low', 'Volume']:
         if k in csv_row:
-            row[k.lower()] = float(csv_row[k])
+            row[k.lower()] = series.load_float(csv_row[k])
 
     row.update(extract_earnings(csv_row))
 
     if 'Dividends amount' in csv_row:
-        d = float(csv_row['Dividends amount'])
-        if math.isnan(d) or d == 0:
-            row['dividend'] = None
-        else:
-            row['dividend'] = d
+        row['dividend'] = series.load_float(csv_row['Dividends amount'],
+                                            allow_0=False)
 
     if 'Split numerator' in csv_row and 'Split denominator' in csv_row:
         n = csv_row['Split numerator']
