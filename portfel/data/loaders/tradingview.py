@@ -49,6 +49,7 @@ def parse_filename(filename):
     basename = os.path.basename(filename)
     base = os.path.splitext(basename)[0]
     ticker, resolution = base.split(',')
+    ticker = ticker.replace(' ', '_')
     if '_DLY_' in ticker:  # Delayed quotes, but we don't care about that.
         ticker = ticker.replace('_DLY_', '_')
     ticker = ticker.replace('_', ':')
