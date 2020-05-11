@@ -25,6 +25,10 @@ import portfel.data.loaders.tradingview as tv
                                'currency': 'USD'}),
     ('XETR_DLY_ALV, 1W.csv', {'ticker': 'XETR:ALV', 'resolution': '1w',
                               'currency': 'EUR'}),
+    ('XETR_DLY ALV, 1W.csv', {'ticker': 'XETR:ALV', 'resolution': '1w',
+                              'currency': 'EUR'}),
+    ('XETR_DLY ALV, 1W(2).csv', {'ticker': 'XETR:ALV', 'resolution': '1w',
+                                 'currency': 'EUR'}),
 ])
 def test_tv_name_parser(name, expect_params):
     assert tv.parse_filename(name) == expect_params

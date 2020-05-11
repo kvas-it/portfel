@@ -48,6 +48,7 @@ def parse_filename(filename):
     """Parse file name to extract ticker and resolution."""
     basename = os.path.basename(filename)
     base = os.path.splitext(basename)[0]
+    base = base.split('(')[0]  # Browsers add (i) to copies of same file.
     ticker, resolution = base.split(',')
     ticker = ticker.replace(' ', '_')
     if '_DLY_' in ticker:  # Delayed quotes, but we don't care about that.
