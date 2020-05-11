@@ -15,10 +15,18 @@
 
 """Common testing setup."""
 
+import os
+
 import py
 import pytest
 
 import portfel.data.loader as ldr
+import portfel.data.repository as repo
+
+
+class DataFiles:
+    SPY_1D = 'BATS_SPY, 1D.csv'
+    ALV_1D = 'FWB_DLY_ALV, 1D.csv'
 
 
 @pytest.fixture()
@@ -30,12 +38,27 @@ def data_path():
 @pytest.fixture()
 def spy_1d(data_path):
     """BATS:SPY OHLC series at 1D resolution."""
-    path = data_path.join('BATS_SPY, 1D.csv').strpath
+    path = data_path.join(DataFiles.SPY_1D).strpath
     return ldr.load_series(path, 'tradingview')
 
 
 @pytest.fixture()
 def alv_1d(data_path):
     """FWB:ALY OHLC series at 1D resolution."""
-    path = data_path.join('FWB_DLY_ALV, 1D.csv').strpath
+    path = data_path.join(DataFiles.ALV_1D).strpath
     return ldr.load_series(path, 'tradingview')
+
+
+@pytest.fixture()
+def repo_path(tmpdir, spy_1d):
+    path = tmpdir.join('repo').strpath
+    repository = repo.Repository(path)
+    repository.add_series(spy_1d)
+    return path
+
+
+@pytest.fixture()
+def repo_env(repo_path):
+    env = dict(os.environ)
+    env['PORTFEL_REPOSITORY'] = repo_path
+    return env

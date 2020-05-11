@@ -22,6 +22,7 @@ import sys
 
 import portfel.data.loader as ldr
 import portfel.data.repository as repo
+import portfel.display as dis
 
 __all__ = ['main']
 
@@ -42,6 +43,9 @@ def command(*args, **kw):
 
     def decorator(func):
         nonlocal args, kw
+
+        func = verbose_arg()(func)
+        func = repository_arg()(func)
 
         if not args:
             args = [func.__name__]
@@ -101,8 +105,6 @@ def repository_arg():
      help='Time series resolution (default: autodetect)')
 @arg('--ticker', '-t', default='auto', type=str,
      help='Exchange ticker, e.g. BATS:SPY (default: autodetect)')
-@repository_arg()
-@verbose_arg()
 def import_series(args):
     """Import time series data."""
     kw = {
@@ -117,9 +119,21 @@ def import_series(args):
         args.source,
         format=args.format,
         resolution=args.resolution,
+        currency=args.currency,
         ticker=args.ticker,
     )
     args.repository.add_series(series)
+
+
+@command(aliases=['ls'])
+def list_series(args):
+    """List known time series."""
+    metas = args.repository.list_series()
+    dis.print_table(metas, columns={
+        'ticker': 'ticker',
+        'res': 'resolution',
+        'cur': 'currency',
+    })
 
 
 def _configure_logging(args):

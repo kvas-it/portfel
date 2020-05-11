@@ -11,6 +11,9 @@ setup(
         'portfel.data',
         'portfel.data.loaders',
     ],
+    install_requires=[
+        'tabulate',
+    ],
     entry_points={
         'console_scripts': [
             'pf=portfel.__main__:main',

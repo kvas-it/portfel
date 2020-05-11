@@ -129,3 +129,14 @@ class Repository:
         if rec is None:
             raise KeyError('{}@{}'.format(ticker, resolution))
         return self._load_series(rec)
+
+    def list_series(self):
+        """List all series."""
+        return [
+            {
+                'ticker': rec['ticker'],
+                'resolution': rec['resolution'],
+                'currency': rec['currency'],
+            }
+            for rec in sorted(self.index, key=lambda r: r['ticker'])
+        ]
