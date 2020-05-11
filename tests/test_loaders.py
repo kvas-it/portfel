@@ -17,8 +17,6 @@
 
 import datetime
 
-import portfel.data.loader as ldr
-
 
 def test_tradingview(spy_1d):
     """Test loading TradeView CSV export."""
@@ -45,8 +43,8 @@ def test_tv_extras(alv_1d):
     assert alv_1d.currency == 'EUR'
     assert alv_1d.source == 'TradingView'
     assert alv_1d.fields == {'time', 'open', 'high', 'low', 'close', 'volume',
-                              'earnings-period', 'earnings-estimate',
-                              'earnings', 'split', 'dividend'}
+                             'earnings-period', 'earnings-estimate',
+                             'earnings', 'split', 'dividend'}
 
     assert alv_1d[0]['earnings'] is None
     assert alv_1d[0]['earnings-period'] is None

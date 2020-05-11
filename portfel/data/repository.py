@@ -18,15 +18,15 @@
 import csv
 import os
 
+import portfel.data.series as srs
+
+
 # Field of the index file.
 INDEX_FIELDS = [
     'ticker',      # Ticker
     'resolution',  # Time resolution
+    'currency',    # Currency
     'source',      # Data source
-    'start',       # Timestamp of the first record
-    'end',         # Timestamp of the last record
-    'count',       # Total number of records
-    'fields',      # Field names, sorted and space-separated
     'filename',    # File name
 ]
 
@@ -36,7 +36,7 @@ class Repository:
 
     def __init__(self, path):
         self.path = path
-        if not os.path.exist(path):
+        if not os.path.exists(path):
             self._init()
         self._load_index()
 
@@ -46,14 +46,17 @@ class Repository:
 
     def _init(self):
         """Initialize the repository."""
-        os.makedirs(os.path)
+        os.makedirs(self.path)
         self._save_index([])
 
     def _load_index(self):
         """Load repository index."""
         with open(self._index_path, 'rt', encoding='utf-8') as f:
             reader = csv.DictReader(f, fieldnames=INDEX_FIELDS)
-            self.index = list(reader)
+            self.index = [
+                rec for rec in reader
+                if rec['ticker'] != 'ticker'  # Skip header.
+            ]
 
     def _save_index(self, index=None):
         """Save repository index (or other provided index)."""
@@ -62,8 +65,7 @@ class Repository:
         with open(self._index_path, 'wt', encoding='utf-8') as f:
             writer = csv.DictWriter(f, fieldnames=INDEX_FIELDS)
             writer.writeheader()
-            for item in index:
-                writer.writerow(item)
+            writer.writerows(index)
 
     def _find_by_params(self, **params):
         """Find series in the index by parameters."""
@@ -72,5 +74,39 @@ class Repository:
             if all(rec[p] == params[p] for p in params)
         ]
 
+    @staticmethod
+    def _series_filename(series):
+        """Determine file name for the series."""
+        return '{}_{}'.format(series.ticker, series.resolution)
+
     def add_series(self, series):
         """Add series to the repository."""
+        filename = self._series_filename(series)
+        series.save_rows(os.path.join(self.path, filename))
+        self.index.append({
+            'ticker': series.ticker,
+            'resolution': series.resolution,
+            'source': series.source,
+            'currency': series.currency,
+            'filename': filename,
+        })
+        self._save_index()
+
+    def get_series(self, ticker, resolution):
+        """Load and return series by exact ticker and resolution."""
+        matches = [
+            rec for rec in self.index
+            if rec['ticker'] == ticker and rec['resolution'] == resolution
+        ]
+        if len(matches) == 1:
+            rec = matches[0]
+            ret = srs.Series(
+                rec['ticker'],
+                rec['resolution'],
+                rec['currency'],
+                rec['source'],
+            )
+            ret.load_rows(os.path.join(self.path, rec['filename']))
+            return ret
+        else:
+            raise KeyError('{}@{}'.format(ticker, resolution))
