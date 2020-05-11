@@ -84,7 +84,7 @@ def extract_earnings(csv_row):
             # Present but 0 earnings period means no earnings in this row.
             return row
 
-        row['earnings-period'] = datetime.datetime.fromtimestamp(ep)
+        row['earnings-period'] = datetime.datetime.utcfromtimestamp(ep)
 
     for k in ['Earnings reported', 'Earnings confirmed', 'Earnings estimated']:
         if k in csv_row:
@@ -100,7 +100,7 @@ def convert_row(csv_row):
     row = {}
 
     if csv_row['time'].isdigit():
-        row['time'] = datetime.datetime.fromtimestamp(int(csv_row['time']))
+        row['time'] = datetime.datetime.utcfromtimestamp(int(csv_row['time']))
     else:
         raise ValueError('time must be a timestamp')
 

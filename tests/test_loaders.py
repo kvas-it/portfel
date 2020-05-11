@@ -26,7 +26,7 @@ def test_tradingview(spy_1d):
     assert spy_1d.source == 'TradingView'
     assert spy_1d.fields == {'time', 'open', 'high', 'low', 'close', 'volume'}
     assert spy_1d[0] == {
-        'time': datetime.datetime(2002, 9, 16, 15, 30),
+        'time': datetime.datetime(2002, 9, 16, 13, 30),
         'open': 5.54452519,
         'high': 5.6036668,
         'low': 5.35231499,
@@ -52,7 +52,7 @@ def test_tv_extras(alv_1d):
     assert alv_1d[0]['dividend'] is None
     assert alv_1d[0]['split'] is None
     assert alv_1d[1]['dividend'] is None
-    assert alv_1d[1]['earnings-period'] == datetime.datetime(2015, 6, 30, 2)
+    assert alv_1d[1]['earnings-period'] == datetime.datetime(2015, 6, 30, 0)
     assert alv_1d[1]['earnings'] == 4.38
     assert alv_1d[1]['earnings-estimate'] == 3.90
     assert alv_1d[2]['earnings'] == 4.44

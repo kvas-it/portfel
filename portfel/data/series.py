@@ -43,7 +43,7 @@ def load_timestamp(v):
     """Convert timestamp after loading from a CSV file."""
     v = load_int(v, allow_0=False)
     if v is not None:
-        return datetime.datetime.fromtimestamp(v)
+        return datetime.datetime.utcfromtimestamp(v)
     # else, return None
 
 
@@ -57,7 +57,7 @@ def save_timestamp(v):
     """Convert timestamp for saving in CSV file."""
     if v is None:
         return v
-    return int(v.timestamp())
+    return int(v.replace(tzinfo=datetime.timezone.utc).timestamp())
 
 
 # Functions to use for loading specific fields.
