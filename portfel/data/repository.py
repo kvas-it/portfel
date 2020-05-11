@@ -77,36 +77,55 @@ class Repository:
     @staticmethod
     def _series_filename(series):
         """Determine file name for the series."""
-        return '{}_{}'.format(series.ticker, series.resolution)
+        return '{}_{}.csv'.format(series.ticker, series.resolution)
 
     def add_series(self, series):
         """Add series to the repository."""
-        filename = self._series_filename(series)
-        series.save_rows(os.path.join(self.path, filename))
-        self.index.append({
-            'ticker': series.ticker,
-            'resolution': series.resolution,
-            'source': series.source,
-            'currency': series.currency,
-            'filename': filename,
-        })
-        self._save_index()
+        rec = self._get_index_record(series.ticker, series.resolution)
 
-    def get_series(self, ticker, resolution):
-        """Load and return series by exact ticker and resolution."""
+        if rec is None:
+            rec = {
+                'ticker': series.ticker,
+                'resolution': series.resolution,
+                'source': series.source,
+                'currency': series.currency,
+                'filename': self._series_filename(series),
+            }
+            self.index.append(rec)
+            self._save_index()
+        else:
+            existing = self._load_series(rec)
+            series = srs.merge(existing, series)
+
+        series.save_rows(os.path.join(self.path, rec['filename']))
+
+    def _get_index_record(self, ticker, resolution):
+        """Get index record by ticker and resolution."""
         matches = [
             rec for rec in self.index
             if rec['ticker'] == ticker and rec['resolution'] == resolution
         ]
         if len(matches) == 1:
-            rec = matches[0]
-            ret = srs.Series(
-                rec['ticker'],
-                rec['resolution'],
-                rec['currency'],
-                rec['source'],
-            )
-            ret.load_rows(os.path.join(self.path, rec['filename']))
-            return ret
-        else:
+            return matches[0]
+        elif len(matches) > 1:
+            raise Exception('Multiple index records for {}@{} - repo corrupt?'
+                            .format(ticker, resolution))
+        # else: return None
+
+    def _load_series(self, index_record):
+        """Load series by index_record."""
+        ret = srs.Series(
+            index_record['ticker'],
+            index_record['resolution'],
+            index_record['currency'],
+            index_record['source'],
+        )
+        ret.load_rows(os.path.join(self.path, index_record['filename']))
+        return ret
+
+    def get_series(self, ticker, resolution):
+        """Load and return series by exact ticker and resolution."""
+        rec = self._get_index_record(ticker, resolution)
+        if rec is None:
             raise KeyError('{}@{}'.format(ticker, resolution))
+        return self._load_series(rec)

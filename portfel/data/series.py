@@ -82,6 +82,53 @@ FIELD_SAVERS = {
 }
 
 
+def _time_step(resolution):
+    """Return time step by resolution."""
+    if resolution == '1d':
+        return datetime.timedelta(days=1)
+
+    raise ValueError('Unsupported resolution: ' + resolution)
+
+
+def _time_round(t, resolution, high=False):
+    if resolution == '1d':
+        if high:
+            return t.replace(hour=23, minute=59, second=59, microsecond=0)
+        else:
+            return t.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    raise ValueError('Unsupported resolution: ' + resolution)
+
+
+def merge(a, b):
+    """Merge two series into one (b has precedence)."""
+    # TODO: check that parameters match?
+
+    result = Series(a.ticker, a.resolution, a.currency, a.source)
+    result.fields = a.fields | b.fields
+
+    a_recs = {_time_round(r['time'], a.resolution): r for r in a}
+    b_recs = {_time_round(r['time'], a.resolution): r for r in b}
+
+    start = _time_round(min(a[0]['time'], b[0]['time']), a.resolution)
+    end = _time_round(max(a[-1]['time'], b[-1]['time']), a.resolution,
+                      high=True)
+    step = _time_step(a.resolution)
+
+    date = start
+    while date < end:  # range() can't work with dates so we iterate manually.
+        rec = {}
+        if date in a_recs:
+            rec.update(a_recs[date])
+        if date in b_recs:
+            rec.update(b_recs[date])
+        if rec:
+            result.append(rec)
+        date += step
+
+    return result
+
+
 class Series(list):
     """Time series data."""
 
@@ -99,7 +146,7 @@ class Series(list):
     def save_rows(self, csv_path):
         """Save the rows of this series to a CSV file."""
         with open(csv_path, 'wt', encoding='utf-8') as f:
-            writer = csv.DictWriter(f, fieldnames=self.fields)
+            writer = csv.DictWriter(f, fieldnames=sorted(self.fields))
             writer.writeheader()
             for row in self:
                 adjusted_row = {
