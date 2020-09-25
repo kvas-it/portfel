@@ -13,22 +13,31 @@
 # You should have received a copy of the GNU General Public License
 # along with Portfel. If not, see <http://www.gnu.org/licenses/>.
 
-"""Filesystem-based data repository."""
+"""Filesystem-based data repository that uses CSV files."""
 
-import csv
 import os
 
-import portfel.data.series as srs
+import pandas as pd
 
+import portfel.data.convert as conv
+import portfel.data.series as ds
 
 # Field of the index file.
 INDEX_FIELDS = [
+    'exchange',    # Exchange
     'ticker',      # Ticker
     'resolution',  # Time resolution
     'currency',    # Currency
-    'source',      # Data source
     'filename',    # File name
+    'first-time',  # Timestamp of the earliest record
+    'last-time',   # Timestamp of the latest record
 ]
+
+# Converters for loading time series from CSV files.
+CONVERTERS = {
+    'time': conv.to_timestamp,
+    'earnings-period': conv.to_timestamp,
+}
 
 
 class Repository:
@@ -36,107 +45,98 @@ class Repository:
 
     def __init__(self, path):
         self.path = path
-        if not os.path.exists(path):
+        self._index_path = os.path.join(self.path, 'index.csv')
+        if os.path.exists(path):
+            self._load_index()
+        else:
             self._init()
-        self._load_index()
-
-    @property
-    def _index_path(self):
-        return os.path.join(self.path, 'index.csv')
 
     def _init(self):
         """Initialize the repository."""
         os.makedirs(self.path)
-        self._save_index([])
+        self.index = pd.DataFrame({f: [] for f in INDEX_FIELDS})
+        self._save_index()
 
     def _load_index(self):
-        """Load repository index."""
-        with open(self._index_path, 'rt', encoding='utf-8') as f:
-            reader = csv.DictReader(f, fieldnames=INDEX_FIELDS)
-            self.index = [
-                rec for rec in reader
-                if rec['ticker'] != 'ticker'  # Skip header.
-            ]
+        """Load the index of available securities."""
+        self.index = pd.read_csv(self._index_path)
 
-    def _save_index(self, index=None):
-        """Save repository index (or other provided index)."""
-        if index is None:
-            index = self.index
-        with open(self._index_path, 'wt', encoding='utf-8') as f:
-            writer = csv.DictWriter(f, fieldnames=INDEX_FIELDS)
-            writer.writeheader()
-            writer.writerows(index)
-
-    def _find_by_params(self, **params):
-        """Find series in the index by parameters."""
-        return [
-            rec for rec in self.index
-            if all(rec[p] == params[p] for p in params)
-        ]
+    def _save_index(self):
+        """Save the index of available securities."""
+        self.index.to_csv(self._index_path)
 
     @staticmethod
     def _series_filename(series):
         """Determine file name for the series."""
-        return '{}_{}.csv'.format(series.ticker, series.resolution)
+        return '{}_{}_{}.csv'.format(series.exchange,
+                                     series.ticker,
+                                     series.resolution)
 
     def add_series(self, series):
         """Add series to the repository."""
-        rec = self._get_index_record(series.ticker, series.resolution)
+        rec = self._get_index_record(series.exchange, series.ticker,
+                                     series.resolution)
 
         if rec is None:
             rec = {
+                'exchange': series.exchange,
                 'ticker': series.ticker,
                 'resolution': series.resolution,
-                'source': series.source,
                 'currency': series.currency,
                 'filename': self._series_filename(series),
+                'first-time': series.index.min(),
+                'last-time': series.index.max(),
             }
-            self.index.append(rec)
-            self._save_index()
+            self.index = self.index.append([rec])
         else:
+            print(rec)
             existing = self._load_series(rec)
-            series = srs.merge(existing, series)
+            print(existing.index)
+            print(series.index)
+            # series = pd.merge(existing, series, on='time')
+            series = pd.concat([existing, series])
+            series = series[~series.index.duplicated(keep='last')]
+            print(series)
+            rec['first-time'] = series.index.min()
+            rec['last-time'] = series.index.max()
 
-        series.save_rows(os.path.join(self.path, rec['filename']))
+        self._save_index()
+        self._save_series(rec, series)
 
-    def _get_index_record(self, ticker, resolution):
+    def _get_index_record(self, exchange, ticker, resolution):
         """Get index record by ticker and resolution."""
-        matches = [
-            rec for rec in self.index
-            if rec['ticker'] == ticker and rec['resolution'] == resolution
+        matches = self.index[
+            (self.index['exchange'] == exchange)
+            & (self.index['ticker'] == ticker)
+            & (self.index['resolution'] == resolution)
         ]
         if len(matches) == 1:
-            return matches[0]
+            return matches.iloc[0]
         elif len(matches) > 1:
             raise Exception('Multiple index records for {}@{} - repo corrupt?'
                             .format(ticker, resolution))
-        # else: return None
+        # otherwise return None
 
     def _load_series(self, index_record):
         """Load series by index_record."""
-        ret = srs.Series(
-            index_record['ticker'],
-            index_record['resolution'],
-            index_record['currency'],
-            index_record['source'],
-        )
-        ret.load_rows(os.path.join(self.path, index_record['filename']))
+        data_path = os.path.join(self.path, index_record['filename'])
+        data = pd.read_csv(data_path, converters=CONVERTERS,
+                           float_precision='high')
+        # High precision float converter above is necessary to avoid drift of
+        # the floating point values. test_get_series fails without it.
+        ret = ds.Series(data)
+        for key in ret._metadata:
+            setattr(ret, key, index_record[key])
         return ret
 
-    def get_series(self, ticker, resolution):
-        """Load and return series by exact ticker and resolution."""
-        rec = self._get_index_record(ticker, resolution)
-        if rec is None:
-            raise KeyError('{}@{}'.format(ticker, resolution))
-        return self._load_series(rec)
+    def _save_series(self, index_record, series):
+        """Save series using the index_record."""
+        data_path = os.path.join(self.path, index_record['filename'])
+        series.to_csv(data_path)
 
-    def list_series(self):
-        """List all series."""
-        return [
-            {
-                'ticker': rec['ticker'],
-                'resolution': rec['resolution'],
-                'currency': rec['currency'],
-            }
-            for rec in sorted(self.index, key=lambda r: r['ticker'])
-        ]
+    def get_series(self, exchange, ticker, resolution):
+        """Load and return series by exact ticker and resolution."""
+        rec = self._get_index_record(exchange, ticker, resolution)
+        if rec is None:
+            raise KeyError('{}:{}@{}'.format(exchange, ticker, resolution))
+        return self._load_series(rec)

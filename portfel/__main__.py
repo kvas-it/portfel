@@ -103,23 +103,18 @@ def repository_arg():
      help='Quote currency (default: autodetect)')
 @arg('--resolution', '-r', default='auto', type=str,
      help='Time series resolution (default: autodetect)')
+@arg('--exchange', '-x', default='auto', type=str,
+     help='Exchange code, e.g. BATS (default: autodetect)')
 @arg('--ticker', '-t', default='auto', type=str,
-     help='Exchange ticker, e.g. BATS:SPY (default: autodetect)')
+     help='Stock ticker, e.g. SPY (default: autodetect)')
 def import_series(args):
     """Import time series data."""
-    kw = {
-        'resolution': args.resolution,
-        'format': args.format,
-        'currency': args.currency,
-    }
-    if args.ticker != 'auto':
-        kw['ticker'] = args.ticker
-
     series = ldr.load_series(
         args.source,
         format=args.format,
         resolution=args.resolution,
         currency=args.currency,
+        exchange=args.exchange,
         ticker=args.ticker,
     )
     args.repository.add_series(series)
@@ -128,12 +123,11 @@ def import_series(args):
 @command(aliases=['ls'])
 def list_series(args):
     """List known time series."""
-    metas = args.repository.list_series()
-    dis.print_table(metas, columns={
-        'ticker': 'ticker',
-        'res': 'resolution',
-        'cur': 'currency',
-    })
+    dis.print_table(
+        args.repository.index,
+        columns=['exchange', 'ticker', 'resolution', 'currency'],
+        sort_by=['exchange', 'ticker'],
+    )
 
 
 def _configure_logging(args):

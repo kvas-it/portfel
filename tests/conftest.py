@@ -50,10 +50,11 @@ def alv_1d(data_path):
 
 
 @pytest.fixture()
-def repo_path(tmpdir, spy_1d):
+def repo_path(tmpdir, spy_1d, alv_1d):
     path = tmpdir.join('repo').strpath
     repository = repo.Repository(path)
     repository.add_series(spy_1d)
+    repository.add_series(alv_1d)
     return path
 
 

@@ -27,18 +27,19 @@ def test_import_series(script_runner, repo_path, data_path):
     result = script_runner.run(
         'pf', 'import_series',
         '--repository', repo_path,
-        '--ticker', 'FOO',
-        '--currency', 'BAR',
+        '--exchange', 'FOO',
+        '--ticker', 'BAR',
+        '--currency', 'BAZ',
         '--resolution', '1d',
         data_path.join(ct.DataFiles.SPY_1D).strpath,
     )
     assert result.success
 
     repository = repo.Repository(repo_path)
-    spy = repository.get_series('BATS:SPY', '1d')
-    foo = repository.get_series('FOO', '1d')
+    spy = repository.get_series('BATS', 'SPY', '1d')
+    foo = repository.get_series('FOO', 'BAR', '1d')
 
-    assert foo.currency == 'BAR'
+    assert foo.currency == 'BAZ'
     assert list(foo) == list(spy)  # It's the same series under different name.
 
 
@@ -51,9 +52,9 @@ def test_list_series(script_runner, repo_env):
         env=repo_env,
     )
     assert result.success
-    assert result.stdout == '\n'.join([
-        'ticker    res    cur',
-        '--------  -----  -----',
-        'BATS:SPY  1d     USD',
-        '',
-    ])
+    assert '\n' + result.stdout == """
+ exchange   | ticker   | resolution   | currency
+------------+----------+--------------+------------
+ BATS       | SPY      | 1d           | USD
+ FWB        | ALV      | 1d           | EUR
+"""

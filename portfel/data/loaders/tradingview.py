@@ -13,13 +13,13 @@
 # You should have received a copy of the GNU General Public License
 # along with Portfel. If not, see <http://www.gnu.org/licenses/>.
 
-"""TradingView CSV exports."""
+"""Loader for TradingView CSV exports."""
 
 import csv
-import datetime
 import os
 
-import portfel.data.series as series
+import portfel.data.convert as conv
+import portfel.data.series as ds
 
 FIELD_MAP = {
     'time': 'time',
@@ -53,11 +53,11 @@ def parse_filename(filename):
     ticker = ticker.replace(' ', '_')
     if '_DLY_' in ticker:  # Delayed quotes, but we don't care about that.
         ticker = ticker.replace('_DLY_', '_')
-    ticker = ticker.replace('_', ':')
+    exchange, ticker = ticker.split('_')
+    currency = CURRENCY_DEFAULTS.get(exchange, 'USD')
     resolution = resolution.strip().lower()
-    prefix = ticker.split(':')[0]
-    currency = CURRENCY_DEFAULTS.get(prefix, 'USD')
     return {
+        'exchange': exchange,
         'ticker': ticker,
         'resolution': resolution,
         'currency': currency,
@@ -84,11 +84,11 @@ def extract_earnings(csv_row):
             # Present but 0 earnings period means no earnings in this row.
             return row
 
-        row['earnings-period'] = datetime.datetime.utcfromtimestamp(ep)
+        row['earnings-period'] = conv.to_timestamp(ep)
 
     for k in ['Earnings reported', 'Earnings confirmed', 'Earnings estimated']:
         if k in csv_row:
-            e = series.load_float(csv_row[k])
+            e = conv.to_float(csv_row[k])
             if e is not None:
                 row[FIELD_MAP[k]] = e
 
@@ -100,19 +100,19 @@ def convert_row(csv_row):
     row = {}
 
     if csv_row['time'].isdigit():
-        row['time'] = datetime.datetime.utcfromtimestamp(int(csv_row['time']))
+        row['time'] = conv.to_timestamp(int(csv_row['time']))
     else:
         raise ValueError('time must be a timestamp')
 
     for k in ['open', 'close', 'high', 'low', 'Volume']:
         if k in csv_row:
-            row[k.lower()] = series.load_float(csv_row[k])
+            row[k.lower()] = conv.to_float(csv_row[k])
 
     row.update(extract_earnings(csv_row))
 
     if 'Dividends amount' in csv_row:
-        row['dividend'] = series.load_float(csv_row['Dividends amount'],
-                                            allow_0=False)
+        row['dividend'] = conv.to_float(csv_row['Dividends amount'],
+                                        allow_0=False)
 
     if 'Split numerator' in csv_row and 'Split denominator' in csv_row:
         n = csv_row['Split numerator']
@@ -121,28 +121,32 @@ def convert_row(csv_row):
         if n.isdigit() and d.isdigit():
             n = int(n)
             d = int(d)
-        if n != 0 and d != 0:
-            row['split'] = '{}/{}'.format(n, d)
+            if n != 0 and d != 0:
+                row['split'] = '{}/{}'.format(n, d)
 
     return row
 
 
-def load(path, resolution, ticker, currency):
+def load(path, resolution, exchange, ticker, currency):
     """Load time series from TradingView CSV export."""
-    kw = {'source': 'TradingView'}
+    metadata = {}
 
-    if 'auto' in [resolution, ticker, currency]:
-        kw.update(parse_filename(path))
-
+    if 'auto' in [resolution, exchange, ticker, currency]:
+        metadata = parse_filename(path)
     if resolution != 'auto':
-        kw['resolution'] = resolution
+        metadata['resolution'] = resolution
+    if exchange != 'auto':
+        metadata['exchange'] = exchange
     if ticker != 'auto':
-        kw['ticker'] = ticker
+        metadata['ticker'] = ticker
     if currency != 'auto':
-        kw['currency'] = currency.upper()
+        metadata['currency'] = currency.upper()
 
     with open(path, 'rt', encoding='utf-8') as f:
         reader = csv.DictReader(f)
-        kw['rows'] = [convert_row(row) for row in reader]
+        ret = ds.Series([convert_row(row) for row in reader])
 
-    return series.Series(**kw)
+    for k, v in metadata.items():
+        setattr(ret, k, v)
+
+    return ret

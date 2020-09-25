@@ -16,39 +16,51 @@
 """Tests for the Repository module."""
 
 import copy
-import datetime
 
+import pandas as pd
 import pytest
 
 import portfel.data.repository as repo
 
 
-def test_get_series(repo_path):
+def test_get_series(repo_path, alv_1d):
     repository = repo.Repository(repo_path)
-    spy_1d = repository.get_series('BATS:SPY', '1d')
-    assert len(spy_1d) == 19
-    assert spy_1d[0]['open'] == 5.54452519
+    alv_1d_ = repository.get_series('FWB', 'ALV', '1d')
+
+    assert alv_1d_.exchange == 'FWB'
+    assert alv_1d_.ticker == 'ALV'
+    assert alv_1d_.resolution == '1d'
+    assert alv_1d_.currency == 'EUR'
+    assert (alv_1d_.index == alv_1d.index).all()
+    assert (alv_1d.keys() == alv_1d_.keys()).all()
+
+    for k in alv_1d:
+        col = alv_1d[k]
+        col_ = alv_1d_[k]
+        nulls = col.isnull()
+        nulls_ = col_.isnull()
+        assert (nulls == nulls_).all()
+        assert (col[~nulls] == col_[~nulls_]).all()
 
 
 def test_get_missing(repo_path):
     repository = repo.Repository(repo_path)
     with pytest.raises(KeyError):
-        repository.get_series('MISSING', '1d')
+        repository.get_series('BATS', 'MISSING', '1d')
 
 
 def test_merge_with_existing(repo_path, spy_1d):
     """Add another part of existing series (they should be merged)."""
     repository = repo.Repository(repo_path)
     spy_1d_ = copy.deepcopy(spy_1d)
-    plus_14d = datetime.timedelta(days=14)
-    for rec in spy_1d_:
-        rec['time'] += plus_14d  # Move records 2 weeks into the future.
+    # Move records 2 weeks into the future.
+    spy_1d_.index = spy_1d_.index + pd.Timedelta(days=14)
     repository.add_series(spy_1d_)
 
-    spy_1d = repository.get_series('BATS:SPY', '1d')
+    spy_1d = repository.get_series('BATS', 'SPY', '1d')
     assert len(spy_1d) == 29
-    assert spy_1d[0]['open'] == spy_1d[10]['open']  # New 1st record.
-    assert spy_1d[10]['time'] - spy_1d[0]['time'] == plus_14d
+    assert spy_1d.iloc[0]['open'] == spy_1d.iloc[10]['open']  # New 1st record.
+    assert spy_1d.index[10] - spy_1d.index[0] == pd.Timedelta(days=14)
 
     # TODO: test merging with different field sets.
     # TODO: test merging with a hole in dates.

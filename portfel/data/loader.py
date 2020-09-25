@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Portfel. If not, see <http://www.gnu.org/licenses/>.
 
-"""Data loading dispatcher."""
+"""Dispatcher for loading data from external sources."""
 
 import logging
 
@@ -24,15 +24,15 @@ LOADERS = {
 }
 
 
-def load_series(path, format='tradingview', resolution='auto', ticker='auto',
-                currency='auto'):
+def load_series(path, format='tradingview', resolution='auto', exchange='auto',
+                ticker='auto', currency='auto'):
     """Load time series from a file."""
     loader = LOADERS[format]
-    series = loader.load(path, resolution=resolution, ticker=ticker,
-                         currency=currency)
+    series = loader.load(path, resolution=resolution, exchange=exchange,
+                         ticker=ticker, currency=currency)
     logging.info(
         'Loaded series from %s (%d records, from %s to %s, fields: %s)',
-        path, len(series), series[0]['time'], series[-1]['time'],
-        ', '.join(sorted(series.fields)),
+        path, len(series), series.index.min(), series.index.max(),
+        ', '.join(sorted(series.keys())),
     )
     return series

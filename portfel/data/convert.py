@@ -13,16 +13,24 @@
 # You should have received a copy of the GNU General Public License
 # along with Portfel. If not, see <http://www.gnu.org/licenses/>.
 
-"""Tests for Series class."""
+"""Converters for data loading."""
 
-import portfel.data.series as series
+import pandas as pd
 
 
-def test_save_load_rows(spy_1d, alv_1d, tmpdir):
-    tmpfile = tmpdir.join('series.csv').strpath
-    for s in [spy_1d, alv_1d]:
-        s.save_rows(tmpfile)
-        s_copy = series.Series(s.ticker, s.resolution, s.currency, s.source)
-        s_copy.load_rows(tmpfile)
+def to_float(v, allow_0=True):
+    """Convert float value after loading from a CSV file."""
+    if v.lower() in ['nan', '']:
+        return None
+    v = float(v)
+    if v == 0 and not allow_0:
+        return None
+    return v
 
-        assert s_copy == s
+
+def to_timestamp(t):
+    """Convert timestamp value."""
+    if isinstance(t, int):
+        return pd.Timestamp(t, unit='s')
+    else:
+        return pd.Timestamp(t)

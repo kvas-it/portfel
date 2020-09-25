@@ -20,6 +20,7 @@ setup(
     ],
     install_requires=[
         'tabulate',
+        'pandas',
     ],
     entry_points={
         'console_scripts': [

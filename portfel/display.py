@@ -17,19 +17,23 @@
 
 import tabulate as tbl
 
+TABLE_FORMAT = "presto"
 
-def print_table(rows, columns=None):
+
+def print_table(data, columns=None, sort_by=None):
     """Print a nice table with data."""
-    if not rows:
+    if len(data) == 0:
         print('-- no data --')
         return
 
-    if columns is None:
-        columns = {k: k for k in rows[0].keys()}
+    if sort_by is not None:
+        data = data.sort_values(by=sort_by)
+    if columns is not None:
+        data = data[columns]
 
-    data = {
-        name: [row[key] for row in rows]
-        for name, key in columns.items()
-    }
-
-    print(tbl.tabulate(data, headers=columns.keys()))
+    print(tbl.tabulate(
+        data,
+        headers='keys',
+        showindex=False,
+        tablefmt=TABLE_FORMAT
+    ))
